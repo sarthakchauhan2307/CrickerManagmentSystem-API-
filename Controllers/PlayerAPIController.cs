@@ -211,5 +211,60 @@ namespace CrickerManagmentSystem_API_.Controllers
 
         }
         #endregion
+
+        #region Filtering
+        [HttpGet("FilterPlayers")]
+        public async Task<IActionResult> GetPlayerFilter(
+            [FromQuery] string? role,
+            [FromQuery] string? name,
+            [FromQuery] int pagenumber = 1,
+            [FromQuery] int pagesize = 10)
+        {
+            var query = _context.Players
+                .Include(p => p.Team) // include Team to get TeamName
+                .AsQueryable();
+
+            // Apply filters
+            if (!string.IsNullOrWhiteSpace(role))
+            {
+                query = query.Where(p => p.Role.Contains(role));
+            }
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                query = query.Where(p => p.PlayerName.Contains(name));
+            }
+
+            // Total count before pagination
+            var totalPlayers = await query.CountAsync();
+
+            // Pagination
+            var players = await query
+                .Skip((pagenumber - 1) * pagesize)
+                .Take(pagesize)
+                .Select(p => new
+                {
+                    p.PlayerId,
+                    p.PlayerName,
+                    p.Role,
+                    p.Nationality,
+                    p.Gender,
+                    p.DateOfBirth,
+                    p.Image,
+                    TeamName = p.Team.TeamName
+                })
+                .ToListAsync();
+
+            var response = new
+            {
+                players,
+                totalPlayers,
+                pageNumber = pagenumber,
+                pageSize = pagesize
+            };
+
+            return Ok(response);
+        }
+        #endregion
+
     }
 }
